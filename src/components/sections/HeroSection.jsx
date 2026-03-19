@@ -78,7 +78,9 @@ export default function HeroSection() {
           className="animate-fade-up mt-6 sm:mt-8 text-[15px] sm:text-lg text-ink-muted max-w-[280px] sm:max-w-md mx-auto leading-relaxed"
           style={{ animationDelay: "0.2s" }}
         >
-          Mempererat tali silaturahmi <strong className="text-ink font-semibold">Keluarga Besar PT PLN (Persero) ULP Salatiga Kota</strong>.
+          Mempererat tali silaturahmi<br />
+          <strong className="text-ink font-semibold">Keluarga Besar PT PLN (Persero)</strong><br />
+          <strong className="text-accent font-bold">ULP Salatiga Kota</strong>
         </p>
 
         {/* Minimal Date Indicator */}
