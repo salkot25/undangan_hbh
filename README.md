@@ -21,6 +21,7 @@ Aplikasi ini telah dirancang secara teliti dari sisi *User Experience (UX)* dan 
 ### 3. Fungsionalitas Cerdas
 - **Validasi Form Real-time**: Formulir RSVP (*segmented control*) memvalidasi isian secara instan dengan *error feedback* terarah.
 - **Integrasi Google Calendar**: Pengunjung dapat sekali klik tombol **"Tambahkan ke Kalender"** untuk secara instan membuat jadwal Halalbihalal di Google Calendar (lengkap dengan jam dan tempat).
+- **Auto-Update Real-time**: Daftar hadir akan otomatis diperbarui (*refresh*) setiap kali ada peserta baru yang mengirim konfirmasi RSVP, tanpa perlu memuat ulang halaman secara manual.
 - **Integrasi Peta Dinamis**: Iframe Google Maps difokuskan langsung pada lokasi **Joglo Ki Penjawi**.
 - **Hubungi Panitia via WhatsApp**: Formulir mini untuk mengirimkan pertanyaan langsung ke WhatsApp panitia (`0895623408000`) dengan format pesan yang sudah otomatis dirangkai beserta identitas pengirim.
 
