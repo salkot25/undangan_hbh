@@ -8,6 +8,7 @@ import AttendanceSection from "./components/sections/AttendanceSection";
 import ContactSection from "./components/sections/ContactSection";
 import LocationSection from "./components/sections/LocationSection";
 import Footer from "./components/sections/Footer";
+import MusicPlayer from "./components/ui/MusicPlayer";
 
 function LandingPage() {
   const [showFab, setShowFab] = useState(false);
@@ -56,6 +57,9 @@ function LandingPage() {
           RSVP Sekarang
         </button>
       </div>
+
+      {/* Floating Music Player */}
+      <MusicPlayer />
     </div>
   );
 }

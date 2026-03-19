@@ -140,5 +140,5 @@ export const EVENT_CONFIG = {
   mapsUrl: "https://maps.google.com/?q=Joglo+Ki+Penjawi+Salatiga",
   mapsEmbedUrl: "https://maps.google.com/maps?q=Joglo%20Ki%20Penjawi,%20Salatiga&t=&z=16&ie=UTF8&iwloc=&output=embed",
   dressCode: "Batik / Bebas Rapi",
-  units: ["Yantek", "MCB On", "Back Office", "P2TL", "Billman", "ULP Salkot"],
+  units: ["Back Office", "Billman", "MCB On", "P2TL", "ULP Salkot", "Yantek"]
 };
