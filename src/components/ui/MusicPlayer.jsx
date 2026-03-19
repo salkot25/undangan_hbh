@@ -7,8 +7,8 @@ export default function MusicPlayer() {
   const [isLoaded, setIsLoaded] = useState(false);
   const playerRef = useRef(null);
 
-  // YouTube Video ID for Ungu - Selamat Lebaran
-  const videoId = "GjYJ5P-L6xY";
+  // YouTube Video ID for Ungu - Selamat Lebaran (Embeddable Lyric Video)
+  const videoId = "9bJX53hX5lA";
 
   useEffect(() => {
     // Load YouTube IFrame Player API
@@ -83,8 +83,14 @@ export default function MusicPlayer() {
 
   return (
     <>
-      <div id="youtube-player" className="hidden" />
-      
+      {/* 
+        YouTube iframe cannot be display:none, otherwise it won't play.
+        We use absolute positioning with 0 opacity to hide it safely.
+      */}
+      <div className="absolute top-0 left-0 w-0 h-0 opacity-0 pointer-events-none overflow-hidden">
+        <div id="youtube-player" />
+      </div>
+
       <div className="fixed bottom-24 right-6 sm:bottom-8 sm:right-8 z-50 flex items-center gap-3 animate-fade-in group">
         {/* Visualizer animation when playing */}
         {isPlaying && (
