@@ -38,6 +38,7 @@ export default function RsvpSection() {
         addToast("RSVP berhasil dikirim!", "success");
         setSubmittedData(form);
         setSubmitted(true);
+        window.dispatchEvent(new Event("rsvpSubmitted"));
       } else {
         addToast(result.message, "error");
       }

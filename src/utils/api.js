@@ -1,5 +1,6 @@
-// Mock API configuration
-// Replace these with real endpoints when connecting to Google Apps Script / Firebase
+// Google Apps Script Web App URL
+// MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+export const GOOGLE_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzxvG-IOdZPfWzOCwnI5P4DW21O0A3yckjT-JLMt_ISwBy9XeQ7aqeNQJhEdgLwMp1q/exec"; 
 
 const MOCK_DELAY = 800; // ms
 
@@ -38,17 +39,38 @@ function delay(ms) {
 }
 
 export async function submitRsvp(data) {
-  await delay(MOCK_DELAY + Math.random() * 500);
-
   // Simulate validation
   if (!data.name || !data.phone || !data.unit) {
     return { success: false, message: "Semua field wajib diisi." };
   }
 
-  // Simulate success
+  // Jika GOOGLE_SHEETS_URL diisi, gunakan API asli
+  if (GOOGLE_SHEETS_URL) {
+    try {
+      const formData = new URLSearchParams();
+      formData.append("action", "submitRsvp");
+      formData.append("name", data.name);
+      formData.append("phone", data.phone);
+      formData.append("unit", data.unit);
+      formData.append("status", data.status);
+
+      const response = await fetch(GOOGLE_SHEETS_URL, {
+        method: "POST",
+        body: formData,
+      });
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error("Gagal mengirim RSVP:", error);
+      return { success: false, message: "Terjadi kesalahan jaringan saat mengirim data." };
+    }
+  }
+
+  // Fallback to mock data if no URL
+  await delay(MOCK_DELAY + Math.random() * 500);
   return {
     success: true,
-    message: "Data RSVP berhasil dikirim!",
+    message: "Data RSVP berhasil dikirim (Mock Mode)!",
     data: {
       ...data,
       timestamp: new Date().toISOString(),
@@ -57,16 +79,36 @@ export async function submitRsvp(data) {
 }
 
 export async function getAttendance({ page = 1, search = "" }) {
-  await delay(MOCK_DELAY);
+  let allData = [];
 
-  let filtered = [...mockAttendees];
+  // Jika GOOGLE_SHEETS_URL diisi, fetch dari API
+  if (GOOGLE_SHEETS_URL) {
+    try {
+      const response = await fetch(`${GOOGLE_SHEETS_URL}?action=getAttendees`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        allData = result.data;
+      } else {
+        allData = [...mockAttendees]; // fallback
+      }
+    } catch (error) {
+      console.error("Gagal memuat peserta dari server:", error);
+      allData = [...mockAttendees];
+    }
+  } else {
+    // Gunakan mook data
+    await delay(MOCK_DELAY);
+    allData = [...mockAttendees];
+  }
+
+  let filtered = [...allData];
 
   if (search.trim()) {
     const q = search.toLowerCase();
     filtered = filtered.filter(
       (item) =>
         item.name.toLowerCase().includes(q) ||
-        item.phone.toLowerCase().includes(q) ||
+        item.phone?.toLowerCase().includes(q) ||
         item.unit.toLowerCase().includes(q)
     );
   }

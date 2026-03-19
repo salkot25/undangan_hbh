@@ -52,6 +52,18 @@ export function useAttendance() {
     fetchData(page, search);
   }, [page, fetchData]);
 
+  // Listen for custom RSVP submitted event (Auto-update list)
+  useEffect(() => {
+    const handleRsvpSubmitted = () => {
+      setPage(1);
+      setSearch("");
+      fetchData(1, "");
+    };
+
+    window.addEventListener("rsvpSubmitted", handleRsvpSubmitted);
+    return () => window.removeEventListener("rsvpSubmitted", handleRsvpSubmitted);
+  }, [fetchData]);
+
   const nextPage = useCallback(() => {
     setPage((p) => Math.min(p + 1, totalPages));
   }, [totalPages]);
