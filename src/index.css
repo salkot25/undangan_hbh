@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0b1a30; /* Deep Corporate Navy */
+  --color-ink-light: #1e293b;
+  --color-ink-muted: #475569;
+  --color-ink-faint: #94a3b8;
+
+  --color-paper: #fafafa;
+  --color-paper-warm: #f1f5f9;
+  --color-paper-white: #ffffff;
+
+  --color-line: #e2e8f0;
+  --color-line-light: #f1f5f9;
+
+  /* PLN Corporate Colors */
+  --color-accent: #00A2E9; /* PLN Cyan */
+  --color-accent-dark: #008bca;
+  --color-accent-light: #e0f2fe;
+  
+  --color-pln-blue: #005C9A;
+  --color-pln-yellow: #FDB813;
+
+  --color-green: #16a34a;
+  --color-green-light: #dcfce7;
+  --color-red: #dc2626;
+  --color-red-light: #fee2e2;
+
+  --animate-fade-in: fade-in 0.6s ease-out both;
+  --animate-fade-up: fade-up 0.7s ease-out both;
+  --animate-fade-up-slow: fade-up 0.9s ease-out both;
+  --animate-scale-in: scale-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  --animate-slide-down: slide-down 0.3s ease-out both;
+  --animate-count: count-pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  --animate-shimmer: shimmer 1.5s infinite;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes count-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 2px; }
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--color-accent-light);
+  color: var(--color-accent-dark);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--color-line-light) 25%, var(--color-paper) 50%, var(--color-line-light) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
