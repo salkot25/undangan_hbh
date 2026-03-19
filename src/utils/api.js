@@ -133,12 +133,12 @@ export const EVENT_CONFIG = {
   name: "Halalbihalal",
   organization: "PT PLN (Persero) ULP Salatiga Kota",
   date: "2026-04-02",
-  time: "12:00",
+  time: "10:00",
   endTime: "Selesai",
   location: "Joglo Ki Penjawi Salatiga",
   address: "MFRW+V4 Sidorejo Lor, Kota Salatiga, Jawa Tengah",
   mapsUrl: "https://maps.google.com/?q=Joglo+Ki+Penjawi+Salatiga",
   mapsEmbedUrl: "https://maps.google.com/maps?q=Joglo%20Ki%20Penjawi,%20Salatiga&t=&z=16&ie=UTF8&iwloc=&output=embed",
-  dressCode: "Batik / Bebas Rapi",
+  dressCode: "Seragam / Bebas Rapi",
   units: ["Back Office", "Billman", "MCB On", "P2TL", "ULP Salkot", "Yantek"]
 };
