@@ -29,7 +29,7 @@ export default function MusicPlayer() {
         width: "0",
         videoId: videoId,
         playerVars: {
-          autoplay: 0,
+          autoplay: 1, // Try native autoplay first
           controls: 0,
           showinfo: 0,
           rel: 0,
@@ -58,6 +58,40 @@ export default function MusicPlayer() {
       if (playerRef.current && playerRef.current.destroy) {
         playerRef.current.destroy();
       }
+    };
+  }, []);
+
+  // Clever workaround for strict browser autoplay policies:
+  // Play music immediately on the first user interaction (scroll, click, or touch)
+  useEffect(() => {
+    let interactionHandled = false;
+
+    const handleFirstInteraction = () => {
+      if (interactionHandled) return;
+      
+      if (playerRef.current && typeof playerRef.current.playVideo === "function") {
+        const state = playerRef.current.getPlayerState ? playerRef.current.getPlayerState() : -1;
+        if (state !== 1) { // 1 = window.YT.PlayerState.PLAYING
+          playerRef.current.playVideo();
+        }
+      }
+      interactionHandled = true;
+      
+      // Cleanup listeners once triggered
+      window.removeEventListener("click", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+      window.removeEventListener("scroll", handleFirstInteraction);
+    };
+
+    // Add listeners
+    window.addEventListener("click", handleFirstInteraction, { once: true });
+    window.addEventListener("touchstart", handleFirstInteraction, { once: true });
+    window.addEventListener("scroll", handleFirstInteraction, { once: true });
+
+    return () => {
+      window.removeEventListener("click", handleFirstInteraction);
+      window.removeEventListener("touchstart", handleFirstInteraction);
+      window.removeEventListener("scroll", handleFirstInteraction);
     };
   }, []);
 
