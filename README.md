@@ -87,6 +87,19 @@ npm run build
 
 Aplikasi ini siap di-deploy langsung ke modern edge-hosting seperti **Cloudflare Pages**, Vercel, atau Netlify cukup dengan mengarahkan publikasi ke direktori `dist/`.
 
+### Custom Domain: undangan.salkot.online
+
+Untuk menggunakan subdomain `undangan.salkot.online`, lakukan konfigurasi berikut:
+
+1. Di DNS provider domain `salkot.online`, buat record:
+   - Type: `CNAME`
+   - Name/Host: `undangan`
+   - Target/Value: `salkot25.github.io`
+2. Di GitHub repository Settings > Pages, isi Custom domain: `undangan.salkot.online` lalu simpan.
+3. Aktifkan opsi `Enforce HTTPS` setelah sertifikat terbit.
+
+File [public/CNAME](public/CNAME) sudah disiapkan agar branch publish menyimpan domain kustom secara konsisten.
+
 ### GitHub Pages (Auto Publish)
 
 Repository ini sudah memiliki workflow [deploy-pages.yml](.github/workflows/deploy-pages.yml) untuk publish otomatis ke GitHub Pages setiap ada push ke branch `main`.
