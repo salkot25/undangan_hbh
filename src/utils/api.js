@@ -2,8 +2,11 @@
 
 // Google Apps Script Web App URL
 // MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI
+const DEFAULT_GOOGLE_SHEETS_URL =
+  "https://script.google.com/macros/s/AKfycbzxvG-IOdZPfWzOCwnI5P4DW21O0A3yckjT-JLMt_ISwBy9XeQ7aqeNQJhEdgLwMp1q/exec";
+
 export const GOOGLE_SHEETS_URL = (
-  import.meta.env.VITE_GOOGLE_SHEETS_URL || ""
+  import.meta.env.VITE_GOOGLE_SHEETS_URL || DEFAULT_GOOGLE_SHEETS_URL
 ).trim();
 
 const REQUEST_TIMEOUT_MS = 8000;
@@ -403,7 +406,7 @@ export function createApiAdapter(options = {}) {
   const provider = getProvider(env);
 
   const safeGoogleSheetsUrl = resolveApiUrl({
-    baseUrl: (env?.VITE_GOOGLE_SHEETS_URL || "").trim(),
+    baseUrl: (env?.VITE_GOOGLE_SHEETS_URL || GOOGLE_SHEETS_URL || "").trim(),
     allowedHosts: getAllowedHosts(
       env?.VITE_API_ALLOWED_HOSTS || "script.google.com",
     ),
