@@ -28,7 +28,7 @@ jobs:
       - name: Run production smoke check
         id: smoke
         env:
-          SMOKE_URL: https://undangan.salkot.online/
+          SMOKE_URL: https://undangan.salkot.online/__force-fail-smoke__
         run: node scripts/smoke-prod.mjs
 
       - name: Notify admin on smoke failure
