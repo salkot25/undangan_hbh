@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { MessageCircle } from "lucide-react";
+import { buildContactMessage, openWhatsAppMessage } from "../../utils/whatsapp";
 
 export default function ContactSection() {
   const [form, setForm] = useState({ name: "", message: "" });
@@ -17,17 +18,12 @@ export default function ContactSection() {
     if (!form.message) newErrors.message = "Pesan wajib diisi";
     if (Object.keys(newErrors).length > 0) return setErrors(newErrors);
 
-    const waNumber = "62895623408000";
-    const text = `Halo Panitia, saya ${form.name}.
+    const text = buildContactMessage({
+      name: form.name,
+      message: form.message,
+    });
+    openWhatsAppMessage({ message: text });
 
-${form.message}
-
---
-Dikirim dari Aplikasi Undangan Halalbihalal PT PLN (Persero) ULP Salatiga Kota`;
-
-    const encodedText = encodeURIComponent(text);
-    window.open(`https://wa.me/${waNumber}?text=${encodedText}`, "_blank");
-    
     setForm({ name: "", message: "" });
   }
 
@@ -43,12 +39,17 @@ Dikirim dari Aplikasi Undangan Halalbihalal PT PLN (Persero) ULP Salatiga Kota`;
             Hubungi Panitia
           </h2>
           <p className="mt-4 text-[15px] sm:text-base text-ink-muted leading-relaxed max-w-sm mx-auto">
-            Ada pertanyaan seputar acara? Jangan ragu untuk menghubungi kami melalui WhatsApp.
+            Ada pertanyaan seputar acara? Jangan ragu untuk menghubungi kami
+            melalui WhatsApp.
           </p>
         </div>
 
         <div className="bg-paper-white p-6 sm:p-10 rounded-[32px] border border-line shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8" noValidate>
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 sm:space-y-8"
+            noValidate
+          >
             <div className="group">
               <label className="block text-[11px] font-bold text-ink-faint uppercase tracking-widest mb-2.5 ml-1 transition-colors group-focus-within:text-ink">
                 Nama Lengkap
@@ -59,10 +60,16 @@ Dikirim dari Aplikasi Undangan Halalbihalal PT PLN (Persero) ULP Salatiga Kota`;
                 onChange={(e) => handleChange("name", e.target.value)}
                 placeholder="Contoh: Budi Santoso"
                 className={`w-full h-14 px-5 rounded-2xl bg-paper-warm border text-ink text-[15px] font-semibold placeholder:text-ink-faint/60 outline-none transition-all duration-300 focus:ring-4 focus:ring-accent/10 focus:bg-paper-white ${
-                  errors.name ? "border-red/50 focus:border-red" : "border-line focus:border-accent/50"
+                  errors.name
+                    ? "border-red/50 focus:border-red"
+                    : "border-line focus:border-accent/50"
                 }`}
               />
-              {errors.name && <p className="mt-2 ml-1 text-[13px] text-red font-medium animate-fade-in">{errors.name}</p>}
+              {errors.name && (
+                <p className="mt-2 ml-1 text-[13px] text-red font-medium animate-fade-in">
+                  {errors.name}
+                </p>
+              )}
             </div>
 
             <div className="group">
@@ -75,10 +82,16 @@ Dikirim dari Aplikasi Undangan Halalbihalal PT PLN (Persero) ULP Salatiga Kota`;
                 placeholder="Tuliskan pertanyaan Bapak/Ibu di sini..."
                 rows={4}
                 className={`w-full p-5 rounded-2xl bg-paper-warm border text-ink text-[15px] font-semibold placeholder:text-ink-faint/60 outline-none transition-all duration-300 focus:ring-4 focus:ring-accent/10 focus:bg-paper-white resize-none ${
-                  errors.message ? "border-red/50 focus:border-red" : "border-line focus:border-accent/50"
+                  errors.message
+                    ? "border-red/50 focus:border-red"
+                    : "border-line focus:border-accent/50"
                 }`}
               />
-              {errors.message && <p className="mt-2 ml-1 text-[13px] text-red font-medium animate-fade-in">{errors.message}</p>}
+              {errors.message && (
+                <p className="mt-2 ml-1 text-[13px] text-red font-medium animate-fade-in">
+                  {errors.message}
+                </p>
+              )}
             </div>
 
             <button

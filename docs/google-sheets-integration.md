@@ -13,8 +13,10 @@ Aplikasi undangan ini sudah siap dihubungkan dengan Google Sheets menggunakan **
    - `D1`: `Phone`
    - `E1`: `Unit`
    - `F1`: `Status`
-  - `G1`: `EventDate`
-  - `H1`: `IdempotencyKey`
+
+- `G1`: `EventDate`
+- `H1`: `IdempotencyKey`
+
 4. (Opsional) Berikan warna latar (_Highlight_) pada baris pertama agar terlihat sebagai Header.
 
 ## Langkah 2: Buat Google Apps Script
@@ -96,7 +98,11 @@ function isDuplicateRsvp_(sheet, payload) {
     var rowIdempotencyKey = String(data[i][7] || "").trim();
 
     // Prioritas dedupe via idempotency key (retry-safe)
-    if (idempotencyKey && rowIdempotencyKey && idempotencyKey === rowIdempotencyKey) {
+    if (
+      idempotencyKey &&
+      rowIdempotencyKey &&
+      idempotencyKey === rowIdempotencyKey
+    ) {
       return true;
     }
 
@@ -264,3 +270,182 @@ VITE_API_AUTH_TOKEN="GANTI_DENGAN_TOKEN_RAHASIA_ANDA"
 4. Selesai! Aplikasi Anda secara otomatis akan mengganti _mock data_ (data palsu sementara) menjadi membaca dan menulis data ke Google Sheets Anda secara _Real-time_.
 
 > **Tip Penting**: Jika sewaktu-waktu Anda mengubah kode _Google Apps Script_, Anda wajib mengklik **Deploy -> Manage deployments**, lalu edit _(pencil icon)_, dan ubah versi ke _New version_, lalu klik _Deploy_ kembali. Jika tidak menggunakan _New Version_, perubahan kode Google Sheets Anda tidak akan bekerja.
+
+## Langkah 5: Security Hardening (Wajib untuk Production)
+
+Tambahkan penguatan berikut pada kode Google Apps Script:
+
+```javascript
+const API_TOKENS = ["TOKEN_AKTIF_SEKARANG", "TOKEN_SEBELUMNYA_OPSIONAL"];
+const REVOKED_TOKENS = [
+  // "TOKEN_BOCOR_YANG_DICABUT"
+];
+const ALLOWED_CALLERS = ["undangan-hbh-web"];
+const ALLOWED_ORIGINS = ["https://undangan.salkot.online"];
+const AUDIT_SHEET_NAME = "AuditLog";
+
+function sanitizeField_(value, maxLen) {
+  return String(value || "")
+    .replace(/[<>"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen || 120);
+}
+
+function getToken_(e) {
+  return sanitizeField_(
+    (e && e.parameter && e.parameter.token) ||
+      (e && e.parameters && e.parameters.token && e.parameters.token[0]) ||
+      "",
+    200,
+  );
+}
+
+function isTokenAllowed_(token) {
+  if (!token) return false;
+  if (REVOKED_TOKENS.indexOf(token) >= 0) return false;
+  return API_TOKENS.indexOf(token) >= 0;
+}
+
+function isCallerAllowed_(e) {
+  var callerId = sanitizeField_(e.parameter.callerId || "", 80);
+  var origin = sanitizeField_(e.parameter.origin || "", 160);
+  if (ALLOWED_CALLERS.indexOf(callerId) < 0) return false;
+  if (ALLOWED_ORIGINS.indexOf(origin) < 0) return false;
+  return true;
+}
+
+function writeAuditLog_(eventName, status, detail) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(AUDIT_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(AUDIT_SHEET_NAME);
+    sheet.appendRow(["Timestamp", "Event", "Status", "Detail"]);
+  }
+  sheet.appendRow([
+    new Date().toISOString(),
+    sanitizeField_(eventName, 80),
+    sanitizeField_(status, 40),
+    sanitizeField_(detail, 300),
+  ]);
+}
+```
+
+Lalu gunakan di `doGet` dan `doPost`:
+
+```javascript
+var token = getToken_(e);
+if (!isTokenAllowed_(token)) {
+  writeAuditLog_("auth", "unauthorized", "token invalid or revoked");
+  return jsonResponse_({
+    success: false,
+    code: "UNAUTHORIZED",
+    message: "Token tidak valid.",
+  });
+}
+
+if (!isCallerAllowed_(e)) {
+  writeAuditLog_("caller", "forbidden", "origin/caller rejected");
+  return jsonResponse_({
+    success: false,
+    code: "FORBIDDEN_CALLER",
+    message: "Caller tidak diizinkan.",
+  });
+}
+```
+
+Untuk penolakan rate-limit atau duplicate, tambahkan audit log:
+
+```javascript
+if (!checkRateLimit_(ipKey)) {
+  writeAuditLog_("rate-limit", "rejected", ipKey);
+  return jsonResponse_({
+    success: false,
+    code: "RATE_LIMIT",
+    message: "Terlalu banyak percobaan.",
+  });
+}
+
+if (isDuplicateRsvp_(sheet, payload)) {
+  writeAuditLog_(
+    "duplicate",
+    "rejected",
+    payload.idempotencyKey || payload.phone,
+  );
+  return jsonResponse_({
+    success: false,
+    code: "DUPLICATE_RSVP",
+    message: "Data RSVP terdeteksi duplikat.",
+  });
+}
+```
+
+### Prosedur Rotasi Token dan Revoke
+
+1. Buat token baru, tambahkan ke `API_TOKENS` bersama token lama.
+2. Update frontend `VITE_API_AUTH_TOKEN` ke token baru.
+3. Deploy frontend dan pantau 24 jam.
+4. Hapus token lama dari `API_TOKENS`.
+5. Jika token bocor, tambahkan token tersebut ke `REVOKED_TOKENS` dan redeploy GAS.
+
+## Langkah 6: Backup Sheet Otomatis Harian + Retention
+
+Tambahkan fungsi berikut di Apps Script:
+
+```javascript
+const BACKUP_PREFIX = "Backup_Data_";
+const BACKUP_RETENTION_DAYS = 14;
+
+function runDailyBackup_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var source = ss.getSheetByName(SHEET_NAME);
+  if (!source) throw new Error("Sheet Data tidak ditemukan");
+
+  var tz = Session.getScriptTimeZone() || "Asia/Jakarta";
+  var dateLabel = Utilities.formatDate(new Date(), tz, "yyyyMMdd");
+  var backupName = BACKUP_PREFIX + dateLabel;
+
+  var existing = ss.getSheetByName(backupName);
+  if (existing) ss.deleteSheet(existing);
+
+  var backup = source.copyTo(ss).setName(backupName);
+  backup.getDataRange().copyTo(backup.getDataRange(), { contentsOnly: true });
+  cleanupOldBackups_();
+}
+
+function cleanupOldBackups_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var now = new Date();
+  var allSheets = ss.getSheets();
+
+  allSheets.forEach(function (sheet) {
+    var name = sheet.getName();
+    if (name.indexOf(BACKUP_PREFIX) !== 0) return;
+
+    var datePart = name.replace(BACKUP_PREFIX, "");
+    if (!/^\d{8}$/.test(datePart)) return;
+
+    var year = Number(datePart.slice(0, 4));
+    var month = Number(datePart.slice(4, 6)) - 1;
+    var day = Number(datePart.slice(6, 8));
+    var backupDate = new Date(year, month, day);
+    var ageDays = Math.floor((now - backupDate) / (24 * 60 * 60 * 1000));
+
+    if (ageDays > BACKUP_RETENTION_DAYS) {
+      ss.deleteSheet(sheet);
+    }
+  });
+}
+```
+
+Aktifkan trigger harian:
+
+1. Buka Apps Script -> **Triggers**.
+2. Tambah trigger untuk `runDailyBackup_`.
+3. Pilih **Time-driven** -> **Day timer** -> misal pukul 01:00-02:00.
+4. Simpan dan pastikan trigger status aktif.
+
+Hasil:
+
+- Setiap hari terbentuk backup sheet baru.
+- Backup lebih lama dari `BACKUP_RETENTION_DAYS` akan dihapus otomatis.

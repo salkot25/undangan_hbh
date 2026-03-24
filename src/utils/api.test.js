@@ -159,6 +159,7 @@ describe("api adapter contracts", () => {
     const api = createApiAdapter({
       env: {
         VITE_EVENT_DATE: "2026-04-02",
+        VITE_API_CLIENT_ID: "web-app-client",
         VITE_GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/test/exec",
         VITE_API_AUTH_TOKEN: "secure-token",
       },
@@ -177,8 +178,10 @@ describe("api adapter contracts", () => {
     const submitOptions = submitCall[1];
     expect(String(submitOptions.body)).toContain("token=secure-token");
     expect(String(submitOptions.body)).toContain("eventDate=2026-04-02");
+    expect(String(submitOptions.body)).toContain("callerId=web-app-client");
     expect(String(submitOptions.body)).toMatch(/idempotencyKey=rsvp-/);
     expect(submitOptions.headers["X-API-Token"]).toBe("secure-token");
+    expect(submitOptions.headers["X-API-Caller"]).toBe("web-app-client");
     expect(submitOptions.headers["X-Idempotency-Key"]).toMatch(/^rsvp-/);
   });
 
@@ -191,12 +194,14 @@ describe("api adapter contracts", () => {
     const api = createApiAdapter({
       env: {
         VITE_EVENT_DATE: "2026-04-02",
+        VITE_API_CLIENT_ID: "web-internal-client",
         VITE_API_PROVIDER: "internal-rest",
         VITE_INTERNAL_API_BASE_URL: "https://localhost/api",
         VITE_INTERNAL_API_ALLOWED_HOSTS: "localhost",
       },
       fetchImpl,
       logger: createSilentLogger(),
+      clientOrigin: "https://undangan.salkot.online",
     });
 
     await api.submitRsvp({
@@ -212,7 +217,13 @@ describe("api adapter contracts", () => {
 
     expect(parsedBody.eventDate).toBe("2026-04-02");
     expect(parsedBody.idempotencyKey).toMatch(/^rsvp-/);
+    expect(parsedBody.callerId).toBe("web-internal-client");
+    expect(parsedBody.origin).toBe("https://undangan.salkot.online");
     expect(submitOptions.headers["X-Idempotency-Key"]).toMatch(/^rsvp-/);
+    expect(submitOptions.headers["X-API-Caller"]).toBe("web-internal-client");
+    expect(submitOptions.headers["X-Client-Origin"]).toBe(
+      "https://undangan.salkot.online",
+    );
   });
 
   it("falls back to mock data when remote attendance schema is invalid", async () => {

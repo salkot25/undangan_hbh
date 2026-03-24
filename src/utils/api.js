@@ -13,6 +13,7 @@ const REQUEST_TIMEOUT_MS = 8000;
 const API_PROVIDER_GOOGLE_SHEETS = "google-sheets";
 const API_PROVIDER_INTERNAL_REST = "internal-rest";
 const DEFAULT_EVENT_DATE = "2026-04-02";
+const DEFAULT_API_CLIENT_ID = "undangan-hbh-web";
 const STATUS_HADIR = "Hadir";
 const STATUS_TIDAK_HADIR = "Tidak Hadir";
 const ATTENDANCE_STATUS_FALLBACK = "Absen";
@@ -217,6 +218,10 @@ function normalizeText(value, maxLen = 120) {
     .slice(0, maxLen);
 }
 
+function sanitizePlainText(value, maxLen = 120) {
+  return normalizeText(value, maxLen).replace(/[<>"'`]/g, "");
+}
+
 function normalizePhone(value) {
   return String(value || "")
     .replace(/[^0-9]/g, "")
@@ -229,10 +234,10 @@ function normalizeStatus(value) {
 }
 
 function sanitizeRsvpPayload(data) {
-  const name = normalizeText(data?.name, 100);
+  const name = sanitizePlainText(data?.name, 100);
   const phone = normalizePhone(data?.phone);
-  const unit = normalizeText(data?.unit, 50);
-  const rawStatus = normalizeText(data?.status, 20);
+  const unit = sanitizePlainText(data?.unit, 50);
+  const rawStatus = sanitizePlainText(data?.status, 20);
   const status = ALLOWED_RSVP_STATUS.has(rawStatus) ? rawStatus : STATUS_HADIR;
 
   if (!name || !phone || !unit) {
@@ -369,11 +374,37 @@ function getAuthToken(env) {
 }
 
 function getEventDate(env) {
-  const eventDate = normalizeText(env?.VITE_EVENT_DATE || DEFAULT_EVENT_DATE, 10);
+  const eventDate = normalizeText(
+    env?.VITE_EVENT_DATE || DEFAULT_EVENT_DATE,
+    10,
+  );
   if (/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
     return eventDate;
   }
   return DEFAULT_EVENT_DATE;
+}
+
+function getClientId(env) {
+  return sanitizePlainText(
+    env?.VITE_API_CLIENT_ID || DEFAULT_API_CLIENT_ID,
+    80,
+  );
+}
+
+function resolveClientOrigin(options, env) {
+  if (options?.clientOrigin) {
+    return sanitizePlainText(options.clientOrigin, 160);
+  }
+
+  if (env?.VITE_API_CLIENT_ORIGIN) {
+    return sanitizePlainText(env.VITE_API_CLIENT_ORIGIN, 160);
+  }
+
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return sanitizePlainText(window.location.origin, 160);
+  }
+
+  return "";
 }
 
 function normalizeForKey(value) {
@@ -405,7 +436,7 @@ function buildRsvpMetadata(payload, eventDate) {
   };
 }
 
-function toGoogleSheetsPayload(payload, authToken, metadata) {
+function toGoogleSheetsPayload(payload, authToken, metadata, clientMeta) {
   const formData = new URLSearchParams();
   formData.append("action", "submitRsvp");
   formData.append("name", payload.name);
@@ -414,6 +445,12 @@ function toGoogleSheetsPayload(payload, authToken, metadata) {
   formData.append("status", payload.status);
   formData.append("eventDate", metadata.eventDate);
   formData.append("idempotencyKey", metadata.idempotencyKey);
+  if (clientMeta?.callerId) {
+    formData.append("callerId", clientMeta.callerId);
+  }
+  if (clientMeta?.origin) {
+    formData.append("origin", clientMeta.origin);
+  }
   if (authToken) {
     formData.append("token", authToken);
   }
@@ -428,6 +465,17 @@ function buildAuthHeaders(authToken) {
 function buildIdempotencyHeaders(metadata) {
   if (!metadata?.idempotencyKey) return {};
   return { "X-Idempotency-Key": metadata.idempotencyKey };
+}
+
+function buildClientHeaders(clientMeta) {
+  const headers = {};
+  if (clientMeta?.callerId) {
+    headers["X-API-Caller"] = clientMeta.callerId;
+  }
+  if (clientMeta?.origin) {
+    headers["X-Client-Origin"] = clientMeta.origin;
+  }
+  return headers;
 }
 
 function mapSubmitFailureMessage(result) {
@@ -478,6 +526,10 @@ export function createApiAdapter(options = {}) {
   const provider = getProvider(env);
   const authToken = getAuthToken(env);
   const eventDate = getEventDate(env);
+  const clientMeta = {
+    callerId: getClientId(env),
+    origin: resolveClientOrigin(options, env),
+  };
 
   const safeGoogleSheetsUrl = resolveApiUrl({
     baseUrl: (env?.VITE_GOOGLE_SHEETS_URL || GOOGLE_SHEETS_URL || "").trim(),
@@ -507,8 +559,9 @@ export function createApiAdapter(options = {}) {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
           ...buildAuthHeaders(authToken),
           ...buildIdempotencyHeaders(metadata),
+          ...buildClientHeaders(clientMeta),
         },
-        body: toGoogleSheetsPayload(payload, authToken, metadata),
+        body: toGoogleSheetsPayload(payload, authToken, metadata, clientMeta),
       },
     });
 
@@ -537,11 +590,14 @@ export function createApiAdapter(options = {}) {
           "Content-Type": "application/json",
           ...buildAuthHeaders(authToken),
           ...buildIdempotencyHeaders(metadata),
+          ...buildClientHeaders(clientMeta),
         },
         body: JSON.stringify({
           ...payload,
           eventDate: metadata.eventDate,
           idempotencyKey: metadata.idempotencyKey,
+          callerId: clientMeta.callerId,
+          origin: clientMeta.origin,
         }),
       },
     });

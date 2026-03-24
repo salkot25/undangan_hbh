@@ -49,3 +49,25 @@ jobs:
           ALERT_STREAK: ${{ steps.streak.outputs.streak }}
           ALERT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/notify-whatsapp.mjs
+
+      - name: Check recovery transition
+        if: success()
+        id: recovery
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HEALTH_WORKFLOW_FILE: health-monitor.yml
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: node scripts/health-recovery-check.mjs
+
+      - name: Notify admin on recovery
+        if: success() && steps.recovery.outputs.recovered == 'true'
+        continue-on-error: true
+        env:
+          WHATSAPP_ADMIN_PHONE: "081999386550"
+          WHATSAPP_CALLMEBOT_APIKEY: ${{ secrets.WHATSAPP_CALLMEBOT_APIKEY }}
+          ALERT_TITLE: "Health monitor recovery"
+          ALERT_BODY: "Layanan undangan.salkot.online kembali sehat setelah periode gangguan."
+          ALERT_STREAK: ${{ steps.recovery.outputs.streak }}
+          ALERT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/notify-whatsapp.mjs

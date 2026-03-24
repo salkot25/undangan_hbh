@@ -61,6 +61,10 @@ Aplikasi ini telah dirancang secara teliti dari sisi _User Experience (UX)_ dan 
    `google-sheets` untuk Google Apps Script atau `internal-rest` untuk backend internal.
    Jika memakai Google Sheets, isi `VITE_GOOGLE_SHEETS_URL`, `VITE_API_ALLOWED_HOSTS`, dan opsional `VITE_API_AUTH_TOKEN` untuk verifikasi token backend.
    Isi `VITE_EVENT_DATE` untuk memberi scope event pada idempotency key RSVP (anti submit ganda lintas retry).
+   Isi `VITE_API_CLIENT_ID` untuk identitas caller frontend (validasi backend).
+   Opsional `VITE_API_CLIENT_ORIGIN` untuk override origin caller saat dibutuhkan.
+   Isi `VITE_SUPPORT_WHATSAPP_NUMBER` untuk kanal fallback RSVP manual saat incident.
+   Gunakan `VITE_INCIDENT_RSVP_FALLBACK_ENABLED` (`true/false`) untuk menyalakan atau mematikan tombol fallback RSVP manual.
    Jika memakai backend internal, isi `VITE_INTERNAL_API_BASE_URL` dan `VITE_INTERNAL_API_ALLOWED_HOSTS`.
    Untuk observability sink, gunakan `VITE_OBSERVABILITY_SINK` (`console` atau `window`).
 
@@ -98,7 +102,7 @@ Repository ini memiliki dua workflow monitoring:
 
 1. [Deploy GitHub Pages](.github/workflows/deploy-pages.yml): setelah deploy selesai, workflow ini menjalankan smoke check pasca deploy sebagai release gate.
 2. [Smoke Check Production](.github/workflows/smoke-prod.yml): mode manual (`workflow_dispatch`) untuk pengecekan on-demand.
-3. [Health Monitor Production](.github/workflows/health-monitor.yml): berjalan terjadwal tiap 10 menit, kirim notifikasi jika gagal beruntun minimal 3 kali.
+3. [Health Monitor Production](.github/workflows/health-monitor.yml): berjalan terjadwal tiap 10 menit, kirim notifikasi jika gagal beruntun minimal 3 kali, dan kirim notifikasi recovery saat layanan pulih kembali.
 
 Nomor admin target sudah diset ke `081999386550`.
 
@@ -129,8 +133,27 @@ Fitur dashboard:
 
 1. Status runtime (ok/degraded/error) dan failure streak.
 2. Ringkasan uptime dari histori check lokal.
-3. Histori health check tersimpan (localStorage) hingga 50 item.
-4. Tombol check manual dan reset histori.
+3. Histori health check tersimpan (localStorage) hingga 2000 item.
+4. Panel tren 24 jam.
+5. Ringkasan harian (uptime, avg latency, max failure streak).
+6. Fallback mode panitia: input manual dan import CSV.
+7. Tombol check manual dan reset histori.
+
+## 🚨 Incident Response (Hari-H)
+
+- Runbook operasional tersedia di [docs/incident-response-runbook.md](docs/incident-response-runbook.md).
+- Checklist pre-event dan live monitoring tersedia di [docs/event-monitoring-checklist.md](docs/event-monitoring-checklist.md).
+- Saat form RSVP online terkendala, tamu dapat memakai tombol fallback `Kirim RSVP Manual via WhatsApp` di section RSVP.
+- Nomor panitia fallback dapat diatur lewat `VITE_SUPPORT_WHATSAPP_NUMBER`.
+
+## 🔐 Security Hardening Backend (Google Apps Script)
+
+- Panduan lengkap ada di [docs/google-sheets-integration.md](docs/google-sheets-integration.md):
+  - rotasi token + revoke token bocor,
+  - pembatasan caller/origin,
+  - sanitasi payload backend lebih ketat,
+  - audit log request yang ditolak,
+  - backup sheet otomatis harian + retention policy.
 
 ## 📦 Build & Deployment
 
