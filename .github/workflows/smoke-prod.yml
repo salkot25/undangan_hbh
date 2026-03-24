@@ -3,7 +3,7 @@ name: Smoke Check Production
 on:
   workflow_dispatch:
   push:
-    branches: [gh-pages]
+    branches: [main]
 
 jobs:
   smoke-check:
