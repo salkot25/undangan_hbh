@@ -16,7 +16,9 @@ async function fetchRuns({ token, repo, workflowFile }) {
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Gagal mengambil workflow runs (${response.status}): ${text}`);
+    throw new Error(
+      `Gagal mengambil workflow runs (${response.status}): ${text}`,
+    );
   }
 
   return response.json();
@@ -25,8 +27,9 @@ async function fetchRuns({ token, repo, workflowFile }) {
 async function main() {
   const token = String(process.env.GITHUB_TOKEN || "").trim();
   const repo = String(process.env.GITHUB_REPOSITORY || "").trim();
-  const workflowFile =
-    String(process.env.HEALTH_WORKFLOW_FILE || "health-monitor.yml").trim();
+  const workflowFile = String(
+    process.env.HEALTH_WORKFLOW_FILE || "health-monitor.yml",
+  ).trim();
   const currentRunId = Number(process.env.GITHUB_RUN_ID || "0");
 
   if (!token || !repo) {
@@ -34,7 +37,9 @@ async function main() {
   }
 
   const payload = await fetchRuns({ token, repo, workflowFile });
-  const runs = Array.isArray(payload.workflow_runs) ? payload.workflow_runs : [];
+  const runs = Array.isArray(payload.workflow_runs)
+    ? payload.workflow_runs
+    : [];
 
   let streak = 1; // Run saat ini sudah gagal
 
