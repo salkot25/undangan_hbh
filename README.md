@@ -104,10 +104,31 @@ Untuk benar-benar mengirim WhatsApp otomatis, tambahkan secret repository:
 
 - `WHATSAPP_CALLMEBOT_APIKEY`
 
+Jika ingin menjalankan test notifikasi dari lokal, isi juga env berikut pada `.env`:
+
+- `WHATSAPP_CALLMEBOT_APIKEY=<api_key_callmebot_anda>`
+
 Catatan:
 
 - Tanpa secret di atas, workflow tetap berjalan dan akan menampilkan fallback link `wa.me` di log.
 - Dengan secret aktif, notifikasi dikirim otomatis via CallMeBot API ke WhatsApp admin.
+
+## 📊 Admin Health Dashboard
+
+Untuk membuka dashboard monitoring internal, tambahkan query berikut pada URL:
+
+`?admin=1`
+
+Contoh:
+
+`https://undangan.salkot.online/?admin=1`
+
+Fitur dashboard:
+
+1. Status runtime (ok/degraded/error) dan failure streak.
+2. Ringkasan uptime dari histori check lokal.
+3. Histori health check tersimpan (localStorage) hingga 50 item.
+4. Tombol check manual dan reset histori.
 
 ## 📦 Build & Deployment
 

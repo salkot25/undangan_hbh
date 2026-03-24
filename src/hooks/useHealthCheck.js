@@ -5,6 +5,8 @@ import { createApiAdapter } from "../utils/api";
 const adapter = createApiAdapter();
 const DEFAULT_INTERVAL_MS = 60_000;
 const DEFAULT_WARN_LATENCY_MS = 1_500;
+const HEALTH_HISTORY_KEY = "hbh_health_history_v1";
+const MAX_HISTORY_ITEMS = 50;
 
 function toPositiveNumber(value, fallback) {
   const parsed = Number(value);
@@ -19,6 +21,30 @@ export function useHealthCheck() {
   const [itemCount, setItemCount] = useState(null);
   const [latencyMs, setLatencyMs] = useState(null);
   const [failureCount, setFailureCount] = useState(0);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(HEALTH_HISTORY_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+
+      setHistory(parsed);
+    } catch {
+      // Ignore malformed storage payloads
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!history.length) return;
+    try {
+      window.localStorage.setItem(HEALTH_HISTORY_KEY, JSON.stringify(history));
+    } catch {
+      // Ignore storage failures in private mode/quota issues
+    }
+  }, [history]);
 
   const healthCheckIntervalMs = toPositiveNumber(
     import.meta.env.VITE_HEALTHCHECK_INTERVAL_MS,
@@ -44,20 +70,62 @@ export function useHealthCheck() {
         const elapsed = Math.round(performance.now() - startedAt);
         setLatencyMs(elapsed);
 
+        const checkedAt = new Date();
+
         if (result.success) {
-          setStatus(elapsed > warnLatencyMs ? "degraded" : "ok");
+          const nextStatus = elapsed > warnLatencyMs ? "degraded" : "ok";
+          setStatus(nextStatus);
           setItemCount(result.totalItems);
-          setLastSuccessAt(new Date());
+          setLastSuccessAt(checkedAt);
           setFailureCount(0);
+          setHistory((prev) => {
+            const next = [
+              {
+                checkedAt: checkedAt.toISOString(),
+                status: nextStatus,
+                latencyMs: elapsed,
+                success: true,
+              },
+              ...prev,
+            ].slice(0, MAX_HISTORY_ITEMS);
+            return next;
+          });
         } else {
           setStatus("error");
           setFailureCount((current) => current + 1);
           setErrorDetail("Response tidak valid dari server");
+          setHistory((prev) => {
+            const next = [
+              {
+                checkedAt: checkedAt.toISOString(),
+                status: "error",
+                latencyMs: elapsed,
+                success: false,
+                error: "Response tidak valid dari server",
+              },
+              ...prev,
+            ].slice(0, MAX_HISTORY_ITEMS);
+            return next;
+          });
         }
       } catch (e) {
+        const checkedAt = new Date();
         setStatus("error");
         setFailureCount((current) => current + 1);
         setErrorDetail(e?.message || "Unknown error");
+        setHistory((prev) => {
+          const next = [
+            {
+              checkedAt: checkedAt.toISOString(),
+              status: "error",
+              latencyMs: null,
+              success: false,
+              error: e?.message || "Unknown error",
+            },
+            ...prev,
+          ].slice(0, MAX_HISTORY_ITEMS);
+          return next;
+        });
       }
 
       setLastChecked(new Date());
@@ -90,8 +158,17 @@ export function useHealthCheck() {
     itemCount,
     latencyMs,
     failureCount,
+    history,
     healthCheckIntervalMs,
     warnLatencyMs,
+    clearHistory: () => {
+      setHistory([]);
+      try {
+        window.localStorage.removeItem(HEALTH_HISTORY_KEY);
+      } catch {
+        // Ignore storage failures
+      }
+    },
     check,
   };
 }

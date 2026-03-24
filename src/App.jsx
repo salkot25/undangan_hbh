@@ -10,10 +10,14 @@ import LocationSection from "./components/sections/LocationSection";
 import Footer from "./components/sections/Footer";
 import MusicPlayer from "./components/ui/MusicPlayer";
 import DebugPanel from "./components/ui/DebugPanel";
+import AdminHealthDashboard from "./components/views/AdminHealthDashboard";
 
 const showDebugPanel =
   typeof window !== "undefined" &&
   new URLSearchParams(window.location.search).get("debug") === "1";
+const showAdminDashboard =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("admin") === "1";
 
 function LandingPage() {
   const [showFab, setShowFab] = useState(false);
@@ -79,7 +83,7 @@ function LandingPage() {
 export default function App() {
   return (
     <ToastProvider>
-      <LandingPage />
+      {showAdminDashboard ? <AdminHealthDashboard /> : <LandingPage />}
     </ToastProvider>
   );
 }
