@@ -6,13 +6,15 @@ Aplikasi undangan ini sudah siap dihubungkan dengan Google Sheets menggunakan **
 
 1. Buka [Google Sheets](https://sheets.google.com) dan buat dokumen baru (Misal: `Data RSVPHalalbihalal PLN`).
 2. Ganti nama _Sheet_ pertama (di bagian bawah kiri layar) menjadi `Data`.
-3. Pada baris pertama (A1 sampai F1), buat kolom header persis seperti ini:
+3. Pada baris pertama (A1 sampai H1), buat kolom header persis seperti ini:
    - `A1`: `ID`
    - `B1`: `Timestamp`
    - `C1`: `Nama`
    - `D1`: `Phone`
    - `E1`: `Unit`
    - `F1`: `Status`
+  - `G1`: `EventDate`
+  - `H1`: `IdempotencyKey`
 4. (Opsional) Berikan warna latar (_Highlight_) pada baris pertama agar terlihat sebagai Header.
 
 ## Langkah 2: Buat Google Apps Script
@@ -72,14 +74,41 @@ function checkRateLimit_(key) {
   return state.count <= MAX_REQUEST_PER_WINDOW;
 }
 
-function isDuplicatePhone_(sheet, phone) {
-  const normalized = String(phone || "").replace(/\D/g, "");
-  if (!normalized) return false;
+function normalizeName_(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isDuplicateRsvp_(sheet, payload) {
+  const normalizedPhone = String(payload.phone || "").replace(/\D/g, "");
+  const normalizedName = normalizeName_(payload.name);
+  const eventDate = String(payload.eventDate || "").trim();
+  const idempotencyKey = String(payload.idempotencyKey || "").trim();
+  if (!normalizedPhone && !idempotencyKey) return false;
 
   const data = sheet.getDataRange().getValues();
   for (var i = 1; i < data.length; i++) {
-    var existing = String(data[i][3] || "").replace(/\D/g, "");
-    if (existing === normalized) return true;
+    var rowPhone = String(data[i][3] || "").replace(/\D/g, "");
+    var rowName = normalizeName_(data[i][2]);
+    var rowEventDate = String(data[i][6] || "").trim();
+    var rowIdempotencyKey = String(data[i][7] || "").trim();
+
+    // Prioritas dedupe via idempotency key (retry-safe)
+    if (idempotencyKey && rowIdempotencyKey && idempotencyKey === rowIdempotencyKey) {
+      return true;
+    }
+
+    // Fallback dedupe via phone+name dalam event date yang sama
+    if (
+      eventDate &&
+      rowEventDate === eventDate &&
+      rowPhone === normalizedPhone &&
+      rowName === normalizedName
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -114,6 +143,8 @@ function doGet(e) {
       phone: String(data[i][3]),
       unit: data[i][4],
       status: data[i][5],
+      eventDate: data[i][6],
+      idempotencyKey: data[i][7],
     });
   }
 
@@ -151,13 +182,22 @@ function doPost(e) {
     var phone = "'" + (e.parameter.phone || ""); // Tambahkan kutip agar angka 0 tidak hilang di Sheet
     var unit = e.parameter.unit || "";
     var status = e.parameter.status || "";
+    var eventDate = e.parameter.eventDate || "";
+    var idempotencyKey = e.parameter.idempotencyKey || "";
     var timestamp = new Date().toISOString();
 
-    if (isDuplicatePhone_(sheet, phone)) {
+    if (
+      isDuplicateRsvp_(sheet, {
+        name: name,
+        phone: phone,
+        eventDate: eventDate,
+        idempotencyKey: idempotencyKey,
+      })
+    ) {
       return jsonResponse_({
         success: false,
         code: "DUPLICATE_RSVP",
-        message: "Nomor HP sudah terdaftar sebelumnya.",
+        message: "Data RSVP terdeteksi duplikat untuk event ini.",
       });
     }
 
@@ -165,7 +205,16 @@ function doPost(e) {
     var id = Utilities.getUuid();
 
     // Tambahkan baris baru ke paling bawah Google Sheets
-    sheet.appendRow([id, timestamp, name, phone, unit, status]);
+    sheet.appendRow([
+      id,
+      timestamp,
+      name,
+      phone,
+      unit,
+      status,
+      eventDate,
+      idempotencyKey,
+    ]);
 
     return jsonResponse_({
       success: true,
@@ -206,6 +255,7 @@ Dapatkan Link (URL API) Anda dengan cara:
 
 ```bash
 VITE_API_PROVIDER="google-sheets"
+VITE_EVENT_DATE="2026-04-02"
 VITE_GOOGLE_SHEETS_URL="https://script.google.com/macros/s/AKfycbwYOUR_APP_URL_HERE/exec"
 VITE_API_ALLOWED_HOSTS="script.google.com"
 VITE_API_AUTH_TOKEN="GANTI_DENGAN_TOKEN_RAHASIA_ANDA"

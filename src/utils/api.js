@@ -12,6 +12,7 @@ export const GOOGLE_SHEETS_URL = (
 const REQUEST_TIMEOUT_MS = 8000;
 const API_PROVIDER_GOOGLE_SHEETS = "google-sheets";
 const API_PROVIDER_INTERNAL_REST = "internal-rest";
+const DEFAULT_EVENT_DATE = "2026-04-02";
 const STATUS_HADIR = "Hadir";
 const STATUS_TIDAK_HADIR = "Tidak Hadir";
 const ATTENDANCE_STATUS_FALLBACK = "Absen";
@@ -367,13 +368,52 @@ function getAuthToken(env) {
   return String(env?.VITE_API_AUTH_TOKEN || "").trim();
 }
 
-function toGoogleSheetsPayload(payload, authToken) {
+function getEventDate(env) {
+  const eventDate = normalizeText(env?.VITE_EVENT_DATE || DEFAULT_EVENT_DATE, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) {
+    return eventDate;
+  }
+  return DEFAULT_EVENT_DATE;
+}
+
+function normalizeForKey(value) {
+  return normalizeText(value, 120).toLowerCase();
+}
+
+function createIdempotencyKey(payload, eventDate) {
+  const raw = [
+    eventDate,
+    payload.phone,
+    normalizeForKey(payload.name),
+    normalizeForKey(payload.unit),
+    normalizeForKey(payload.status),
+  ].join("|");
+
+  let hash = 5381;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = (hash * 33) ^ raw.charCodeAt(i);
+  }
+
+  const normalizedDate = eventDate.replace(/-/g, "");
+  return `rsvp-${normalizedDate}-${(hash >>> 0).toString(16)}`;
+}
+
+function buildRsvpMetadata(payload, eventDate) {
+  return {
+    eventDate,
+    idempotencyKey: createIdempotencyKey(payload, eventDate),
+  };
+}
+
+function toGoogleSheetsPayload(payload, authToken, metadata) {
   const formData = new URLSearchParams();
   formData.append("action", "submitRsvp");
   formData.append("name", payload.name);
   formData.append("phone", payload.phone);
   formData.append("unit", payload.unit);
   formData.append("status", payload.status);
+  formData.append("eventDate", metadata.eventDate);
+  formData.append("idempotencyKey", metadata.idempotencyKey);
   if (authToken) {
     formData.append("token", authToken);
   }
@@ -383,6 +423,11 @@ function toGoogleSheetsPayload(payload, authToken) {
 function buildAuthHeaders(authToken) {
   if (!authToken) return {};
   return { "X-API-Token": authToken };
+}
+
+function buildIdempotencyHeaders(metadata) {
+  if (!metadata?.idempotencyKey) return {};
+  return { "X-Idempotency-Key": metadata.idempotencyKey };
 }
 
 function mapSubmitFailureMessage(result) {
@@ -432,6 +477,7 @@ export function createApiAdapter(options = {}) {
   const logger = createLogger(options.logger);
   const provider = getProvider(env);
   const authToken = getAuthToken(env);
+  const eventDate = getEventDate(env);
 
   const safeGoogleSheetsUrl = resolveApiUrl({
     baseUrl: (env?.VITE_GOOGLE_SHEETS_URL || GOOGLE_SHEETS_URL || "").trim(),
@@ -449,7 +495,7 @@ export function createApiAdapter(options = {}) {
     logger,
   });
 
-  async function submitViaGoogleSheets(payload) {
+  async function submitViaGoogleSheets(payload, metadata) {
     const result = await fetchJsonWithTimeout({
       fetchImpl,
       url: safeGoogleSheetsUrl,
@@ -460,8 +506,9 @@ export function createApiAdapter(options = {}) {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
           ...buildAuthHeaders(authToken),
+          ...buildIdempotencyHeaders(metadata),
         },
-        body: toGoogleSheetsPayload(payload, authToken),
+        body: toGoogleSheetsPayload(payload, authToken, metadata),
       },
     });
 
@@ -477,7 +524,7 @@ export function createApiAdapter(options = {}) {
     return result;
   }
 
-  async function submitViaInternalRest(payload) {
+  async function submitViaInternalRest(payload, metadata) {
     const endpoint = `${safeInternalRestBaseUrl}/rsvp`;
     const result = await fetchJsonWithTimeout({
       fetchImpl,
@@ -489,8 +536,13 @@ export function createApiAdapter(options = {}) {
         headers: {
           "Content-Type": "application/json",
           ...buildAuthHeaders(authToken),
+          ...buildIdempotencyHeaders(metadata),
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...payload,
+          eventDate: metadata.eventDate,
+          idempotencyKey: metadata.idempotencyKey,
+        }),
       },
     });
 
@@ -572,14 +624,15 @@ export function createApiAdapter(options = {}) {
       return sanitized;
     }
     const payload = sanitized.data;
+    const metadata = buildRsvpMetadata(payload, eventDate);
 
     try {
       if (provider === API_PROVIDER_GOOGLE_SHEETS && safeGoogleSheetsUrl) {
-        return await submitViaGoogleSheets(payload);
+        return await submitViaGoogleSheets(payload, metadata);
       }
 
       if (provider === API_PROVIDER_INTERNAL_REST && safeInternalRestBaseUrl) {
-        return await submitViaInternalRest(payload);
+        return await submitViaInternalRest(payload, metadata);
       }
     } catch (error) {
       logger.error("api.submit.failed", {
@@ -599,6 +652,8 @@ export function createApiAdapter(options = {}) {
       message: "Data RSVP berhasil dikirim (Mock Mode)!",
       data: {
         ...payload,
+        eventDate: metadata.eventDate,
+        idempotencyKey: metadata.idempotencyKey,
         timestamp: new Date().toISOString(),
       },
     };
@@ -671,7 +726,7 @@ export async function getAttendance(params) {
 export const EVENT_CONFIG = {
   name: "Halalbihalal",
   organization: "PT PLN (Persero) ULP Salatiga Kota",
-  date: "2026-04-02",
+  date: DEFAULT_EVENT_DATE,
   time: "10:00",
   endTime: "Selesai",
   location: "Joglo Ki Penjawi Salatiga",

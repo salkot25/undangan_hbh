@@ -60,6 +60,7 @@ Aplikasi ini telah dirancang secara teliti dari sisi _User Experience (UX)_ dan 
    Konfigurasi provider API melalui `VITE_API_PROVIDER`:
    `google-sheets` untuk Google Apps Script atau `internal-rest` untuk backend internal.
    Jika memakai Google Sheets, isi `VITE_GOOGLE_SHEETS_URL`, `VITE_API_ALLOWED_HOSTS`, dan opsional `VITE_API_AUTH_TOKEN` untuk verifikasi token backend.
+   Isi `VITE_EVENT_DATE` untuk memberi scope event pada idempotency key RSVP (anti submit ganda lintas retry).
    Jika memakai backend internal, isi `VITE_INTERNAL_API_BASE_URL` dan `VITE_INTERNAL_API_ALLOWED_HOSTS`.
    Untuk observability sink, gunakan `VITE_OBSERVABILITY_SINK` (`console` atau `window`).
 

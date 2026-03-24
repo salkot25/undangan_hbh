@@ -150,7 +150,7 @@ describe("api adapter contracts", () => {
     expect(result.message).toMatch(/sudah terdaftar/i);
   });
 
-  it("sends API token in google-sheets request payload", async () => {
+  it("sends API token, eventDate, and idempotency key in google-sheets payload", async () => {
     const fetchImpl = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ success: true }),
@@ -158,6 +158,7 @@ describe("api adapter contracts", () => {
 
     const api = createApiAdapter({
       env: {
+        VITE_EVENT_DATE: "2026-04-02",
         VITE_GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/test/exec",
         VITE_API_AUTH_TOKEN: "secure-token",
       },
@@ -175,7 +176,43 @@ describe("api adapter contracts", () => {
     const submitCall = fetchImpl.mock.calls[0];
     const submitOptions = submitCall[1];
     expect(String(submitOptions.body)).toContain("token=secure-token");
+    expect(String(submitOptions.body)).toContain("eventDate=2026-04-02");
+    expect(String(submitOptions.body)).toMatch(/idempotencyKey=rsvp-/);
     expect(submitOptions.headers["X-API-Token"]).toBe("secure-token");
+    expect(submitOptions.headers["X-Idempotency-Key"]).toMatch(/^rsvp-/);
+  });
+
+  it("sends idempotency metadata to internal REST provider", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+
+    const api = createApiAdapter({
+      env: {
+        VITE_EVENT_DATE: "2026-04-02",
+        VITE_API_PROVIDER: "internal-rest",
+        VITE_INTERNAL_API_BASE_URL: "https://localhost/api",
+        VITE_INTERNAL_API_ALLOWED_HOSTS: "localhost",
+      },
+      fetchImpl,
+      logger: createSilentLogger(),
+    });
+
+    await api.submitRsvp({
+      name: "Budi Santoso",
+      phone: "081234567890",
+      unit: "Yantek",
+      status: "Hadir",
+    });
+
+    const submitCall = fetchImpl.mock.calls[0];
+    const submitOptions = submitCall[1];
+    const parsedBody = JSON.parse(submitOptions.body);
+
+    expect(parsedBody.eventDate).toBe("2026-04-02");
+    expect(parsedBody.idempotencyKey).toMatch(/^rsvp-/);
+    expect(submitOptions.headers["X-Idempotency-Key"]).toMatch(/^rsvp-/);
   });
 
   it("falls back to mock data when remote attendance schema is invalid", async () => {
