@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ToastProvider } from "./hooks/useToast";
+import { ToastProvider } from "./hooks/ToastProvider";
 import Navbar from "./components/layout/Navbar";
 import HeroSection from "./components/sections/HeroSection";
 import EventDetails from "./components/sections/EventDetails";
@@ -9,6 +9,11 @@ import ContactSection from "./components/sections/ContactSection";
 import LocationSection from "./components/sections/LocationSection";
 import Footer from "./components/sections/Footer";
 import MusicPlayer from "./components/ui/MusicPlayer";
+import DebugPanel from "./components/ui/DebugPanel";
+
+const showDebugPanel =
+  typeof window !== "undefined" &&
+  new URLSearchParams(window.location.search).get("debug") === "1";
 
 function LandingPage() {
   const [showFab, setShowFab] = useState(false);
@@ -43,15 +48,19 @@ function LandingPage() {
         <LocationSection />
       </main>
       <Footer />
-      
+
       {/* Mobile Sticky RSVP FAB */}
-      <div 
+      <div
         className={`fixed md:hidden bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-paper-white via-paper-white/90 to-transparent z-40 transition-transform duration-500 ease-out ${
           showFab ? "translate-y-0" : "translate-y-[150%]"
         }`}
       >
         <button
-          onClick={() => document.getElementById("rsvp")?.scrollIntoView({ behavior: "smooth" })}
+          onClick={() =>
+            document
+              .getElementById("rsvp")
+              ?.scrollIntoView({ behavior: "smooth" })
+          }
           className="w-full bg-accent text-paper-white font-bold py-4 rounded-full shadow-[0_8px_30px_rgba(0,162,233,0.25)] active:scale-[0.98] transition-transform flex items-center justify-center gap-2"
         >
           RSVP Sekarang
@@ -60,6 +69,9 @@ function LandingPage() {
 
       {/* Floating Music Player */}
       <MusicPlayer />
+
+      {/* Debug panel — hanya aktif saat URL mengandung ?debug=1 */}
+      {showDebugPanel && <DebugPanel />}
     </div>
   );
 }

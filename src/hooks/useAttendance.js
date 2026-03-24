@@ -9,13 +9,17 @@ export function useAttendance() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const debounceRef = useRef(null);
 
   const fetchData = useCallback(async (currentPage, currentSearch) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await getAttendance({ page: currentPage, search: currentSearch });
+      const result = await getAttendance({
+        page: currentPage,
+        search: currentSearch,
+      });
       if (result.success) {
         setData(result.data);
         setTotalPages(result.totalPages);
@@ -36,8 +40,7 @@ export function useAttendance() {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
-      setPage(1);
-      fetchData(1, search);
+      setDebouncedSearch(search);
     }, 300);
 
     return () => {
@@ -47,21 +50,28 @@ export function useAttendance() {
     };
   }, [search, fetchData]);
 
-  // Page change effect
+  // Reset to first page when debounced search query changes
   useEffect(() => {
-    fetchData(page, search);
-  }, [page, fetchData]);
+    setPage(1);
+  }, [debouncedSearch]);
+
+  // Page/data change effect
+  useEffect(() => {
+    fetchData(page, debouncedSearch);
+  }, [page, debouncedSearch, fetchData]);
 
   // Listen for custom RSVP submitted event (Auto-update list)
   useEffect(() => {
     const handleRsvpSubmitted = () => {
       setPage(1);
       setSearch("");
+      setDebouncedSearch("");
       fetchData(1, "");
     };
 
     window.addEventListener("rsvpSubmitted", handleRsvpSubmitted);
-    return () => window.removeEventListener("rsvpSubmitted", handleRsvpSubmitted);
+    return () =>
+      window.removeEventListener("rsvpSubmitted", handleRsvpSubmitted);
   }, [fetchData]);
 
   const nextPage = useCallback(() => {
@@ -84,6 +94,6 @@ export function useAttendance() {
     setPage,
     nextPage,
     prevPage,
-    refetch: () => fetchData(page, search),
+    refetch: () => fetchData(page, debouncedSearch),
   };
 }
