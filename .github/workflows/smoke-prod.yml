@@ -1,0 +1,29 @@
+name: Smoke Check Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [gh-pages]
+
+jobs:
+  smoke-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wait for CDN propagation
+        run: sleep 20
+
+      - name: Run production smoke check
+        env:
+          SMOKE_URL: https://undangan.salkot.online/
+        run: node scripts/smoke-prod.mjs

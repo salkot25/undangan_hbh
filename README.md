@@ -77,6 +77,20 @@ npm run test:run
 npm run build
 ```
 
+## 🔎 Smoke Check Production
+
+Setelah deploy, jalankan verifikasi cepat ke domain production:
+
+```bash
+npm run smoke:prod
+```
+
+Opsional override target URL:
+
+```bash
+SMOKE_URL="https://undangan.salkot.online/" npm run smoke:prod
+```
+
 ## 📦 Build & Deployment
 
 Untuk mempersiapkan aplikasi menuju _production_:
