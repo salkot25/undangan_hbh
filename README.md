@@ -91,6 +91,24 @@ Opsional override target URL:
 SMOKE_URL="https://undangan.salkot.online/" npm run smoke:prod
 ```
 
+### Alert WhatsApp Otomatis
+
+Repository ini memiliki dua workflow monitoring:
+
+1. [Smoke Check Production](.github/workflows/smoke-prod.yml): berjalan setelah update branch `gh-pages`, kirim notifikasi jika smoke check gagal.
+2. [Health Monitor Production](.github/workflows/health-monitor.yml): berjalan terjadwal tiap 10 menit, kirim notifikasi jika gagal beruntun minimal 3 kali.
+
+Nomor admin target sudah diset ke `081999386550`.
+
+Untuk benar-benar mengirim WhatsApp otomatis, tambahkan secret repository:
+
+- `WHATSAPP_CALLMEBOT_APIKEY`
+
+Catatan:
+
+- Tanpa secret di atas, workflow tetap berjalan dan akan menampilkan fallback link `wa.me` di log.
+- Dengan secret aktif, notifikasi dikirim otomatis via CallMeBot API ke WhatsApp admin.
+
 ## 📦 Build & Deployment
 
 Untuk mempersiapkan aplikasi menuju _production_:

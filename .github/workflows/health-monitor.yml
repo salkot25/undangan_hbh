@@ -1,15 +1,16 @@
-name: Smoke Check Production
+name: Health Monitor Production
 
 on:
+  schedule:
+    - cron: "*/10 * * * *"
   workflow_dispatch:
-  push:
-    branches: [gh-pages]
 
 jobs:
-  smoke-check:
+  monitor:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      actions: read
 
     steps:
       - name: Checkout main
@@ -22,22 +23,29 @@ jobs:
         with:
           node-version: 22
 
-      - name: Wait for CDN propagation
-        run: sleep 20
-
-      - name: Run production smoke check
+      - name: Run production health smoke
         id: smoke
         env:
           SMOKE_URL: https://undangan.salkot.online/
         run: node scripts/smoke-prod.mjs
 
-      - name: Notify admin on smoke failure
+      - name: Calculate failure streak
         if: failure()
+        id: streak
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          HEALTH_WORKFLOW_FILE: health-monitor.yml
+        run: node scripts/health-failure-streak.mjs
+
+      - name: Notify admin on failure streak
+        if: failure() && fromJSON(steps.streak.outputs.streak) >= 3
         continue-on-error: true
         env:
           WHATSAPP_ADMIN_PHONE: "081999386550"
           WHATSAPP_CALLMEBOT_APIKEY: ${{ secrets.WHATSAPP_CALLMEBOT_APIKEY }}
-          ALERT_TITLE: "Smoke check production gagal"
-          ALERT_BODY: "Pemeriksaan pasca deploy mendeteksi kegagalan pada production site."
+          ALERT_TITLE: "Health check error beruntun"
+          ALERT_BODY: "Monitor production mendeteksi error beruntun pada undangan.salkot.online."
+          ALERT_STREAK: ${{ steps.streak.outputs.streak }}
           ALERT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: node scripts/notify-whatsapp.mjs
