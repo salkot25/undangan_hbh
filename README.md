@@ -87,6 +87,22 @@ npm run build
 
 Aplikasi ini siap di-deploy langsung ke modern edge-hosting seperti **Cloudflare Pages**, Vercel, atau Netlify cukup dengan mengarahkan publikasi ke direktori `dist/`.
 
+### GitHub Pages (Auto Publish)
+
+Repository ini sudah memiliki workflow [deploy-pages.yml](.github/workflows/deploy-pages.yml) untuk publish otomatis ke GitHub Pages setiap ada push ke branch `main`.
+
+Langkah aktivasi (sekali saja):
+
+1. Buka GitHub repository settings.
+2. Masuk ke menu Pages.
+3. Pada Build and deployment, pilih Source: GitHub Actions.
+
+Setelah aktif, URL publish default:
+
+https://salkot25.github.io/undangan_hbh/
+
+Catatan teknis: workflow build menggunakan `VITE_BASE_PATH=/undangan_hbh/` agar asset path sesuai untuk Pages project site.
+
 ---
 
 _Didesain dan dikembangkan sebagai wujud dukungan terhadap silaturahmi Keluarga Besar PT PLN (Persero) ULP Salatiga Kota._

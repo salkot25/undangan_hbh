@@ -1,4 +1,14 @@
+import { useEffect, useRef } from "react";
 import { useHealthCheck } from "../../hooks/useHealthCheck";
+import { useToast } from "../../hooks/useToast";
+
+const DEFAULT_ALERT_FAILURE_THRESHOLD = 3;
+const DEFAULT_ALERT_COOLDOWN_MS = 120_000;
+
+function toPositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
 
 function formatTime(date) {
   if (!date) return "—";
@@ -15,8 +25,17 @@ const STATUS_CONFIG = {
     label: "Memeriksa...",
     className: "text-yellow-400 animate-pulse",
   },
-  ok: { label: "✓ Terhubung", className: "text-green-400" },
+  ok: { label: "✓ Sehat", className: "text-green-400" },
+  degraded: { label: "! Melambat", className: "text-yellow-400" },
   error: { label: "✗ Gagal", className: "text-red-400" },
+};
+
+const STATUS_DOT_CLASS = {
+  idle: "bg-gray-400",
+  checking: "bg-yellow-400 animate-pulse",
+  ok: "bg-green-400",
+  degraded: "bg-yellow-400",
+  error: "bg-red-500",
 };
 
 function Row({ label, value, valueClass = "text-white" }) {
@@ -29,23 +48,80 @@ function Row({ label, value, valueClass = "text-white" }) {
 }
 
 export default function DebugPanel() {
+  const { addToast } = useToast();
   const {
     provider,
     isRemoteEnabled,
     status,
     lastChecked,
+    lastSuccessAt,
     errorDetail,
     itemCount,
+    latencyMs,
+    failureCount,
+    healthCheckIntervalMs,
+    warnLatencyMs,
     check,
   } = useHealthCheck();
+  const lastAlertAtRef = useRef(0);
+  const hasActiveFailureAlertRef = useRef(false);
+
+  const alertFailureThreshold = toPositiveNumber(
+    import.meta.env.VITE_HEALTHCHECK_ALERT_FAILURE_THRESHOLD,
+    DEFAULT_ALERT_FAILURE_THRESHOLD,
+  );
+  const alertCooldownMs = toPositiveNumber(
+    import.meta.env.VITE_HEALTHCHECK_ALERT_COOLDOWN_MS,
+    DEFAULT_ALERT_COOLDOWN_MS,
+  );
 
   const statusCfg = STATUS_CONFIG[status];
+  const statusDotClass = STATUS_DOT_CLASS[status] || STATUS_DOT_CLASS.idle;
+
+  useEffect(() => {
+    const now = Date.now();
+    const isFailure =
+      status === "error" && failureCount >= alertFailureThreshold;
+
+    if (isFailure) {
+      const cooldownPassed = now - lastAlertAtRef.current >= alertCooldownMs;
+      if (cooldownPassed) {
+        addToast(
+          `Health check gagal ${failureCount}x beruntun (${provider}).`,
+          "error",
+          6000,
+        );
+        lastAlertAtRef.current = now;
+      }
+      hasActiveFailureAlertRef.current = true;
+      return;
+    }
+
+    const isRecovered =
+      hasActiveFailureAlertRef.current &&
+      (status === "ok" || status === "degraded");
+
+    if (isRecovered) {
+      addToast("Koneksi server pulih kembali.", "success", 4000);
+      hasActiveFailureAlertRef.current = false;
+      lastAlertAtRef.current = now;
+    }
+  }, [
+    addToast,
+    alertCooldownMs,
+    alertFailureThreshold,
+    failureCount,
+    provider,
+    status,
+  ]);
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-72 bg-gray-950 border border-gray-700 rounded-xl text-xs font-mono shadow-2xl overflow-hidden select-none">
       {/* Header */}
       <div className="px-3 py-2 bg-gray-800 flex items-center gap-2">
-        <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
+        <span
+          className={`inline-block w-2 h-2 rounded-full shrink-0 ${statusDotClass}`}
+        />
         <span className="text-yellow-400 font-bold tracking-widest uppercase">
           Debug Panel
         </span>
@@ -64,14 +140,29 @@ export default function DebugPanel() {
           value={statusCfg.label}
           valueClass={statusCfg.className}
         />
+        <Row
+          label="Latensi"
+          value={latencyMs !== null ? `${latencyMs} ms` : "—"}
+          valueClass={
+            latencyMs !== null && latencyMs > warnLatencyMs
+              ? "text-yellow-400"
+              : "text-green-400"
+          }
+        />
 
-        {status === "ok" && itemCount !== null && (
+        {(status === "ok" || status === "degraded") && itemCount !== null && (
           <Row
             label="Total peserta"
             value={`${itemCount} orang`}
             valueClass="text-green-400"
           />
         )}
+
+        <Row
+          label="Gagal beruntun"
+          value={String(failureCount)}
+          valueClass={failureCount > 0 ? "text-red-400" : "text-green-400"}
+        />
 
         {status === "error" && errorDetail && (
           <Row
@@ -82,6 +173,17 @@ export default function DebugPanel() {
         )}
 
         <Row label="Dicek pada" value={formatTime(lastChecked)} />
+        <Row label="Sukses terakhir" value={formatTime(lastSuccessAt)} />
+        <Row
+          label="Auto cek"
+          value={`${Math.round(healthCheckIntervalMs / 1000)} detik`}
+          valueClass="text-cyan-400"
+        />
+        <Row
+          label="Alert saat gagal"
+          value={`${alertFailureThreshold}x beruntun`}
+          valueClass="text-orange-400"
+        />
 
         <div className="pt-1">
           <button
@@ -89,7 +191,7 @@ export default function DebugPanel() {
             disabled={status === "checking"}
             className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded text-white font-bold tracking-wide transition-colors"
           >
-            {status === "checking" ? "Memeriksa..." : "Cek Koneksi"}
+            {status === "checking" ? "Memeriksa..." : "Cek Sekarang"}
           </button>
         </div>
       </div>
