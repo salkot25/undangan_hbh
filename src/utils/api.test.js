@@ -104,6 +104,80 @@ describe("api adapter contracts", () => {
     expect(result.message).toMatch(/kesalahan jaringan/i);
   });
 
+  it("maps rate limit error code from backend", async () => {
+    const api = createApiAdapter({
+      env: {
+        VITE_GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/test/exec",
+      },
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: false, code: "RATE_LIMIT" }),
+      }),
+      logger: createSilentLogger(),
+    });
+
+    const result = await api.submitRsvp({
+      name: "Budi Santoso",
+      phone: "081234567890",
+      unit: "Yantek",
+      status: "Hadir",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/terlalu banyak percobaan/i);
+  });
+
+  it("maps duplicate RSVP error code from backend", async () => {
+    const api = createApiAdapter({
+      env: {
+        VITE_GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/test/exec",
+      },
+      fetchImpl: vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ success: false, code: "DUPLICATE_RSVP" }),
+      }),
+      logger: createSilentLogger(),
+    });
+
+    const result = await api.submitRsvp({
+      name: "Budi Santoso",
+      phone: "081234567890",
+      unit: "Yantek",
+      status: "Hadir",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/sudah terdaftar/i);
+  });
+
+  it("sends API token in google-sheets request payload", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true }),
+    });
+
+    const api = createApiAdapter({
+      env: {
+        VITE_GOOGLE_SHEETS_URL: "https://script.google.com/macros/s/test/exec",
+        VITE_API_AUTH_TOKEN: "secure-token",
+      },
+      fetchImpl,
+      logger: createSilentLogger(),
+    });
+
+    await api.submitRsvp({
+      name: "Budi Santoso",
+      phone: "081234567890",
+      unit: "Yantek",
+      status: "Hadir",
+    });
+
+    const submitCall = fetchImpl.mock.calls[0];
+    const submitOptions = submitCall[1];
+    expect(String(submitOptions.body)).toContain("token=secure-token");
+    expect(submitOptions.headers["X-API-Token"]).toBe("secure-token");
+  });
+
   it("falls back to mock data when remote attendance schema is invalid", async () => {
     const api = createApiAdapter({
       env: {

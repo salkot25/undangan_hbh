@@ -25,8 +25,80 @@ Aplikasi undangan ini sudah siap dihubungkan dengan Google Sheets menggunakan **
 ```javascript
 // Nama sheet tempat data disimpan
 const SHEET_NAME = "Data";
+const API_TOKEN = "GANTI_DENGAN_TOKEN_RAHASIA_ANDA";
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_REQUEST_PER_WINDOW = 5;
+
+function getClientIp_() {
+  return (
+    (Session.getTemporaryActiveUserKey &&
+      Session.getTemporaryActiveUserKey()) ||
+    "anonymous"
+  );
+}
+
+function verifyToken_(e) {
+  const tokenFromHeader =
+    (e && e.parameter && e.parameter.token) ||
+    (e && e.parameters && e.parameters.token && e.parameters.token[0]) ||
+    "";
+
+  if (!API_TOKEN) return true;
+  return tokenFromHeader === API_TOKEN;
+}
+
+function checkRateLimit_(key) {
+  const cache = CacheService.getScriptCache();
+  const cacheKey = "rate:" + key;
+  const now = Date.now();
+  const raw = cache.get(cacheKey);
+  let state = { count: 0, startAt: now };
+
+  if (raw) {
+    state = JSON.parse(raw);
+  }
+
+  if (now - state.startAt > RATE_LIMIT_WINDOW_MS) {
+    state = { count: 0, startAt: now };
+  }
+
+  state.count += 1;
+  cache.put(
+    cacheKey,
+    JSON.stringify(state),
+    Math.ceil(RATE_LIMIT_WINDOW_MS / 1000),
+  );
+
+  return state.count <= MAX_REQUEST_PER_WINDOW;
+}
+
+function isDuplicatePhone_(sheet, phone) {
+  const normalized = String(phone || "").replace(/\D/g, "");
+  if (!normalized) return false;
+
+  const data = sheet.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    var existing = String(data[i][3] || "").replace(/\D/g, "");
+    if (existing === normalized) return true;
+  }
+  return false;
+}
+
+function jsonResponse_(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(
+    ContentService.MimeType.JSON,
+  );
+}
 
 function doGet(e) {
+  if (!verifyToken_(e)) {
+    return jsonResponse_({
+      success: false,
+      code: "UNAUTHORIZED",
+      message: "Token tidak valid.",
+    });
+  }
+
   // Menangani request GET dari aplikasi React (Menarik Data Kehadiran)
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
   var data = sheet.getDataRange().getValues();
@@ -46,15 +118,30 @@ function doGet(e) {
   }
 
   // Return JSON ke React app
-  return ContentService.createTextOutput(
-    JSON.stringify({
-      success: true,
-      data: result.reverse(), // Reverse agar data terbaru tampil di paling atas
-    }),
-  ).setMimeType(ContentService.MimeType.JSON);
+  return jsonResponse_({
+    success: true,
+    data: result.reverse(), // Reverse agar data terbaru tampil di paling atas
+  });
 }
 
 function doPost(e) {
+  if (!verifyToken_(e)) {
+    return jsonResponse_({
+      success: false,
+      code: "UNAUTHORIZED",
+      message: "Token tidak valid.",
+    });
+  }
+
+  const ipKey = getClientIp_();
+  if (!checkRateLimit_(ipKey)) {
+    return jsonResponse_({
+      success: false,
+      code: "RATE_LIMIT",
+      message: "Terlalu banyak percobaan, coba beberapa saat lagi.",
+    });
+  }
+
   // Menangani request POST dari aplikasi React (Memasukkan data RSVP Baru)
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
 
@@ -66,25 +153,29 @@ function doPost(e) {
     var status = e.parameter.status || "";
     var timestamp = new Date().toISOString();
 
+    if (isDuplicatePhone_(sheet, phone)) {
+      return jsonResponse_({
+        success: false,
+        code: "DUPLICATE_RSVP",
+        message: "Nomor HP sudah terdaftar sebelumnya.",
+      });
+    }
+
     // Generate UUID/ID unik
     var id = Utilities.getUuid();
 
     // Tambahkan baris baru ke paling bawah Google Sheets
     sheet.appendRow([id, timestamp, name, phone, unit, status]);
 
-    return ContentService.createTextOutput(
-      JSON.stringify({
-        success: true,
-        message: "Data RSVP berhasil masuk ke Google Sheets!",
-      }),
-    ).setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({
+      success: true,
+      message: "Data RSVP berhasil masuk ke Google Sheets!",
+    });
   } catch (error) {
-    return ContentService.createTextOutput(
-      JSON.stringify({
-        success: false,
-        message: "Gagal menyimpan data: " + error.toString(),
-      }),
-    ).setMimeType(ContentService.MimeType.JSON);
+    return jsonResponse_({
+      success: false,
+      message: "Gagal menyimpan data: " + error.toString(),
+    });
   }
 }
 ```
@@ -117,6 +208,7 @@ Dapatkan Link (URL API) Anda dengan cara:
 VITE_API_PROVIDER="google-sheets"
 VITE_GOOGLE_SHEETS_URL="https://script.google.com/macros/s/AKfycbwYOUR_APP_URL_HERE/exec"
 VITE_API_ALLOWED_HOSTS="script.google.com"
+VITE_API_AUTH_TOKEN="GANTI_DENGAN_TOKEN_RAHASIA_ANDA"
 ```
 
 4. Selesai! Aplikasi Anda secara otomatis akan mengganti _mock data_ (data palsu sementara) menjadi membaca dan menulis data ke Google Sheets Anda secara _Real-time_.

@@ -15,6 +15,8 @@ const API_PROVIDER_INTERNAL_REST = "internal-rest";
 const STATUS_HADIR = "Hadir";
 const STATUS_TIDAK_HADIR = "Tidak Hadir";
 const ATTENDANCE_STATUS_FALLBACK = "Absen";
+const API_ERROR_RATE_LIMIT = "RATE_LIMIT";
+const API_ERROR_DUPLICATE = "DUPLICATE_RSVP";
 
 const EVENT_UNITS = [
   "Back Office",
@@ -361,14 +363,39 @@ function getProvider(env) {
   return API_PROVIDER_GOOGLE_SHEETS;
 }
 
-function toGoogleSheetsPayload(payload) {
+function getAuthToken(env) {
+  return String(env?.VITE_API_AUTH_TOKEN || "").trim();
+}
+
+function toGoogleSheetsPayload(payload, authToken) {
   const formData = new URLSearchParams();
   formData.append("action", "submitRsvp");
   formData.append("name", payload.name);
   formData.append("phone", payload.phone);
   formData.append("unit", payload.unit);
   formData.append("status", payload.status);
+  if (authToken) {
+    formData.append("token", authToken);
+  }
   return formData;
+}
+
+function buildAuthHeaders(authToken) {
+  if (!authToken) return {};
+  return { "X-API-Token": authToken };
+}
+
+function mapSubmitFailureMessage(result) {
+  const code = normalizeText(result?.code, 40).toUpperCase();
+  if (code === API_ERROR_RATE_LIMIT) {
+    return "Terlalu banyak percobaan. Silakan tunggu sebentar dan coba lagi.";
+  }
+  if (code === API_ERROR_DUPLICATE) {
+    return "Nomor HP ini sudah terdaftar sebelumnya.";
+  }
+  const message = normalizeText(result?.message, 200);
+  if (message) return message;
+  return "Gagal menyimpan data ke server.";
 }
 
 function buildPaginatedAttendanceResult(items, page) {
@@ -404,6 +431,7 @@ export function createApiAdapter(options = {}) {
   const requestTimeoutMs = options.requestTimeoutMs || REQUEST_TIMEOUT_MS;
   const logger = createLogger(options.logger);
   const provider = getProvider(env);
+  const authToken = getAuthToken(env);
 
   const safeGoogleSheetsUrl = resolveApiUrl({
     baseUrl: (env?.VITE_GOOGLE_SHEETS_URL || GOOGLE_SHEETS_URL || "").trim(),
@@ -431,8 +459,9 @@ export function createApiAdapter(options = {}) {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          ...buildAuthHeaders(authToken),
         },
-        body: toGoogleSheetsPayload(payload),
+        body: toGoogleSheetsPayload(payload, authToken),
       },
     });
 
@@ -440,8 +469,9 @@ export function createApiAdapter(options = {}) {
       logger.warn("api.submit.invalid_response", {
         provider: API_PROVIDER_GOOGLE_SHEETS,
         success: result?.success,
+        code: result?.code,
       });
-      return { success: false, message: "Gagal menyimpan data ke server." };
+      return { success: false, message: mapSubmitFailureMessage(result) };
     }
 
     return result;
@@ -458,6 +488,7 @@ export function createApiAdapter(options = {}) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...buildAuthHeaders(authToken),
         },
         body: JSON.stringify(payload),
       },
@@ -467,20 +498,30 @@ export function createApiAdapter(options = {}) {
       logger.warn("api.submit.invalid_response", {
         provider: API_PROVIDER_INTERNAL_REST,
         success: result?.success,
+        code: result?.code,
       });
-      return { success: false, message: "Gagal menyimpan data ke server." };
+      return { success: false, message: mapSubmitFailureMessage(result) };
     }
 
     return result;
   }
 
   async function getAttendanceViaGoogleSheets() {
-    const endpoint = `${safeGoogleSheetsUrl}?action=getAttendees`;
+    const query = new URLSearchParams({ action: "getAttendees" });
+    if (authToken) {
+      query.set("token", authToken);
+    }
+    const endpoint = `${safeGoogleSheetsUrl}?${query.toString()}`;
     const result = await fetchJsonWithTimeout({
       fetchImpl,
       url: endpoint,
       timeoutMs: requestTimeoutMs,
       logger,
+      options: {
+        headers: {
+          ...buildAuthHeaders(authToken),
+        },
+      },
     });
 
     if (!isSuccessResult(result) || !Array.isArray(result.data)) {
@@ -506,6 +547,11 @@ export function createApiAdapter(options = {}) {
       url: endpoint,
       timeoutMs: requestTimeoutMs,
       logger,
+      options: {
+        headers: {
+          ...buildAuthHeaders(authToken),
+        },
+      },
     });
 
     if (!isSuccessResult(result) || !Array.isArray(result.data)) {
