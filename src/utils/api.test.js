@@ -180,9 +180,7 @@ describe("api adapter contracts", () => {
     expect(String(submitOptions.body)).toContain("eventDate=2026-04-02");
     expect(String(submitOptions.body)).toContain("callerId=web-app-client");
     expect(String(submitOptions.body)).toMatch(/idempotencyKey=rsvp-/);
-    expect(submitOptions.headers["X-API-Token"]).toBe("secure-token");
-    expect(submitOptions.headers["X-API-Caller"]).toBe("web-app-client");
-    expect(submitOptions.headers["X-Idempotency-Key"]).toMatch(/^rsvp-/);
+    expect(submitOptions.headers).toBeUndefined();
   });
 
   it("sends idempotency metadata to internal REST provider", async () => {

@@ -555,12 +555,6 @@ export function createApiAdapter(options = {}) {
       logger,
       options: {
         method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-          ...buildAuthHeaders(authToken),
-          ...buildIdempotencyHeaders(metadata),
-          ...buildClientHeaders(clientMeta),
-        },
         body: toGoogleSheetsPayload(payload, authToken, metadata, clientMeta),
       },
     });
@@ -619,17 +613,18 @@ export function createApiAdapter(options = {}) {
     if (authToken) {
       query.set("token", authToken);
     }
+    if (clientMeta.callerId) {
+      query.set("callerId", clientMeta.callerId);
+    }
+    if (clientMeta.origin) {
+      query.set("origin", clientMeta.origin);
+    }
     const endpoint = `${safeGoogleSheetsUrl}?${query.toString()}`;
     const result = await fetchJsonWithTimeout({
       fetchImpl,
       url: endpoint,
       timeoutMs: requestTimeoutMs,
       logger,
-      options: {
-        headers: {
-          ...buildAuthHeaders(authToken),
-        },
-      },
     });
 
     if (!isSuccessResult(result) || !Array.isArray(result.data)) {

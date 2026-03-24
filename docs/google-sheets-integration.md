@@ -244,9 +244,11 @@ Dapatkan Link (URL API) Anda dengan cara:
 1. Di pojok kanan atas Apps Script, klik tombol biru **Deploy** -> **New deployment**.
 2. Klik ikon gir (Select type) di sebelah kiri, pilih **Web app**.
 3. Isi konfigurasi seperti berikut:
-   - **Description**: `Versi 1.0 RSVP API`
-   - **Execute as**: `Me` (Pilih email Anda)
-   - **Who has access**: **`Anyone`** (Krusial! Wajib pilih _Anyone_ agar aplikasi web Anda bisa mengaksesnya tanpa harus login akun Google).
+
+- **Description**: `Versi 2.0 RSVP API (Modular)`
+- **Execute as**: `Me` (Pilih email Anda)
+- **Who has access**: **`Anyone`** (Krusial! Wajib pilih _Anyone_ agar aplikasi web Anda bisa mengaksesnya tanpa harus login akun Google).
+
 4. Klik **Deploy**.
 5. Google mungkin akan meminta _Authorize access_ (Izin akses). Klik **Authorize access**, pilih akun Google Anda. Jika muncul peringatan keamanan _"Google hasn't verified this app"_, klik tautan kecil **Advanced**, lalu klik tautan **Go to RSVP Backend API (unsafe)** di bagian bawah, dan klik **Allow**.
 6. Deployment Sukses! Anda akan melihat jendela yang berisi **Web app URL**.
@@ -449,3 +451,27 @@ Hasil:
 
 - Setiap hari terbentuk backup sheet baru.
 - Backup lebih lama dari `BACKUP_RETENTION_DAYS` akan dihapus otomatis.
+
+## Lampiran: Versi 2 (Modular Multi-File)
+
+Jika Anda ingin struktur Apps Script yang lebih mudah dipelihara, gunakan template modular pada folder berikut:
+
+- [docs/apps-script-modular/README.md](docs/apps-script-modular/README.md)
+- [docs/apps-script-modular/config.gs](docs/apps-script-modular/config.gs)
+- [docs/apps-script-modular/utils.gs](docs/apps-script-modular/utils.gs)
+- [docs/apps-script-modular/audit.gs](docs/apps-script-modular/audit.gs)
+- [docs/apps-script-modular/auth.gs](docs/apps-script-modular/auth.gs)
+- [docs/apps-script-modular/rate-limit.gs](docs/apps-script-modular/rate-limit.gs)
+- [docs/apps-script-modular/validation.gs](docs/apps-script-modular/validation.gs)
+- [docs/apps-script-modular/duplicate.gs](docs/apps-script-modular/duplicate.gs)
+- [docs/apps-script-modular/handlers.gs](docs/apps-script-modular/handlers.gs)
+- [docs/apps-script-modular/backup.gs](docs/apps-script-modular/backup.gs)
+
+Ringkasan arsitektur modular:
+
+1. `config.gs`: semua konstanta environment dan kebijakan.
+2. `utils.gs`: helper umum, sanitize, response JSON, dan bootstrap sheet.
+3. `auth.gs` + `rate-limit.gs`: proteksi akses API.
+4. `validation.gs` + `duplicate.gs`: validasi dan anti-duplikasi RSVP.
+5. `handlers.gs`: endpoint `doGet` dan `doPost`.
+6. `backup.gs`: backup harian + retention + manajemen trigger.
