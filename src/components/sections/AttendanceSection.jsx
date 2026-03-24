@@ -1,11 +1,13 @@
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAttendance } from "../../hooks/useAttendance";
 
-function StatusDot({ status }) {
+function StatusDot({ status, compact = false }) {
   const isHadir = status === "Hadir";
   return (
     <span
-      className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${isHadir ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}
+      className={`inline-flex items-center justify-center rounded-full font-bold uppercase tracking-wider ${
+        compact ? "px-2 py-1 text-[9px]" : "px-2.5 py-1 text-[10px]"
+      } ${isHadir ? "bg-green/10 text-green" : "bg-red/10 text-red"}`}
     >
       {status}
     </span>
@@ -47,9 +49,15 @@ function SkeletonCard() {
   return (
     <div className="p-4 rounded-2xl border border-line bg-paper-white flex gap-3">
       <div className="skeleton w-10 h-10 rounded-full shrink-0" />
-      <div className="flex-1 space-y-2 py-1">
-        <div className="skeleton h-4 w-32 rounded" />
-        <div className="skeleton h-3 w-24 rounded" />
+      <div className="flex-1 space-y-2 py-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <div className="skeleton h-4 w-28 rounded" />
+          <div className="skeleton h-5 w-14 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="skeleton h-3 w-20 rounded" />
+          <div className="skeleton h-3 w-24 rounded" />
+        </div>
       </div>
     </div>
   );
@@ -224,10 +232,10 @@ export default function AttendanceSection() {
                 : data.map((item) => (
                     <div
                       key={item.id}
-                      className="p-4 rounded-2xl border border-line bg-paper-white shadow-sm flex items-center gap-4 hover:border-accent/40 transition-colors"
+                      className="p-4 rounded-2xl border border-line bg-paper-white shadow-sm flex items-center gap-3 hover:border-accent/40 transition-colors"
                     >
                       {/* Avatar */}
-                      <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center shrink-0 border border-accent/20 relative">
+                      <div className="w-11 h-11 rounded-full bg-accent/10 flex items-center justify-center shrink-0 border border-accent/20 relative">
                         <span className="text-xs font-bold text-accent tracking-widest">
                           {getInitials(item.name)}
                         </span>
@@ -238,14 +246,19 @@ export default function AttendanceSection() {
                       </div>
                       {/* Info */}
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-[15px] font-bold text-ink truncate">
-                          {item.name}
-                        </h3>
-                        <div className="flex border-t border-line/50 mt-1.5 pt-1.5 items-center justify-between">
-                          <span className="text-[11px] font-semibold text-ink-faint">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-[15px] font-bold text-ink truncate">
+                              {item.name}
+                            </h3>
+                          </div>
+                          <StatusDot status={item.status} compact />
+                        </div>
+                        <div className="flex border-t border-line/50 mt-2 pt-2 items-center justify-between gap-3">
+                          <span className="text-[11px] font-semibold text-ink-faint truncate">
                             {item.unit}
                           </span>
-                          <span className="text-[11px] font-mono text-ink-faint tracking-wider">
+                          <span className="text-[11px] font-mono text-ink-faint tracking-wider shrink-0">
                             {item.phone}
                           </span>
                         </div>
