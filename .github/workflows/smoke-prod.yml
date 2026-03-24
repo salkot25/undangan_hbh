@@ -2,8 +2,6 @@ name: Smoke Check Production
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   smoke-check:

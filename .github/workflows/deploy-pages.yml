@@ -52,3 +52,39 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  smoke-after-deploy:
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Wait for CDN propagation
+        run: sleep 30
+
+      - name: Run production smoke check
+        env:
+          SMOKE_URL: https://undangan.salkot.online/
+        run: node scripts/smoke-prod.mjs
+
+      - name: Notify admin on smoke failure
+        if: failure()
+        continue-on-error: true
+        env:
+          WHATSAPP_ADMIN_PHONE: "081999386550"
+          WHATSAPP_CALLMEBOT_APIKEY: ${{ secrets.WHATSAPP_CALLMEBOT_APIKEY }}
+          ALERT_TITLE: "Smoke check pasca deploy gagal"
+          ALERT_BODY: "Deploy ke production selesai, tetapi smoke check pasca deploy gagal."
+          ALERT_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/notify-whatsapp.mjs

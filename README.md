@@ -95,8 +95,9 @@ SMOKE_URL="https://undangan.salkot.online/" npm run smoke:prod
 
 Repository ini memiliki dua workflow monitoring:
 
-1. [Smoke Check Production](.github/workflows/smoke-prod.yml): berjalan setelah update branch `gh-pages`, kirim notifikasi jika smoke check gagal.
-2. [Health Monitor Production](.github/workflows/health-monitor.yml): berjalan terjadwal tiap 10 menit, kirim notifikasi jika gagal beruntun minimal 3 kali.
+1. [Deploy GitHub Pages](.github/workflows/deploy-pages.yml): setelah deploy selesai, workflow ini menjalankan smoke check pasca deploy sebagai release gate.
+2. [Smoke Check Production](.github/workflows/smoke-prod.yml): mode manual (`workflow_dispatch`) untuk pengecekan on-demand.
+3. [Health Monitor Production](.github/workflows/health-monitor.yml): berjalan terjadwal tiap 10 menit, kirim notifikasi jika gagal beruntun minimal 3 kali.
 
 Nomor admin target sudah diset ke `081999386550`.
 
@@ -156,6 +157,7 @@ File [public/CNAME](public/CNAME) sudah disiapkan agar branch publish menyimpan 
 ### GitHub Pages (Auto Publish)
 
 Repository ini sudah memiliki workflow [deploy-pages.yml](.github/workflows/deploy-pages.yml) untuk publish otomatis ke GitHub Pages setiap ada push ke branch `main`.
+Workflow ini juga menjalankan smoke check pasca deploy; release dianggap sehat jika smoke check lolos.
 
 Langkah aktivasi (sekali saja):
 
@@ -163,11 +165,11 @@ Langkah aktivasi (sekali saja):
 2. Masuk ke menu Pages.
 3. Pada Build and deployment, pilih Source: GitHub Actions.
 
-Setelah aktif, URL publish default:
+Setelah aktif dengan custom domain, URL publish:
 
-https://salkot25.github.io/undangan_hbh/
+https://undangan.salkot.online/
 
-Catatan teknis: workflow build menggunakan `VITE_BASE_PATH=/undangan_hbh/` agar asset path sesuai untuk Pages project site.
+Catatan teknis: workflow build menggunakan `VITE_BASE_PATH=/` agar asset path sesuai untuk custom domain.
 
 ---
 
